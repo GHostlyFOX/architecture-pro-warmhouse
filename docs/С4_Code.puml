@@ -1,0 +1,64 @@
+@startuml
+title Диаграмма классов для микросервиса "Управление устройствами"
+
+class DeviceController {
+    + registerDevice(deviceData: DeviceDTO): Response
+    + getDeviceStatus(deviceId: UUID): DeviceStatus
+    + updateDeviceConfig(deviceId: UUID, config: Config): Response
+}
+
+class DeviceService {
+    + registerDevice(deviceData: DeviceDTO): Device
+    + getDevice(deviceId: UUID): Device
+    + updateDevice(deviceId: UUID, config: Config): Device
+}
+
+class DeviceRepository {
+    + save(device: Device): Device
+    + findById(deviceId: UUID): Device
+    + delete(deviceId: UUID): void
+}
+
+class EventPublisher {
+    + publishDeviceRegistered(device: Device): void
+    + publishDeviceUpdated(device: Device): void
+}
+
+class Device {
+    - UUID id
+    - String name
+    - DeviceType type
+    - DeviceStatus status
+    - Config configuration
+    + getId(): UUID
+    + getName(): String
+    + getStatus(): DeviceStatus
+    + setConfig(config: Config): void
+}
+
+enum DeviceType {
+    TEMPERATURE_SENSOR
+    RELAY
+    CAMERA
+}
+
+enum DeviceStatus {
+    ACTIVE
+    INACTIVE
+    ERROR
+}
+
+class Config {
+    + Map<String, String> parameters
+    + getParameter(key: String): String
+    + setParameter(key: String, value: String): void
+}
+
+DeviceController --> DeviceService : "Использует"
+DeviceService --> DeviceRepository : "Вызывает"
+DeviceService --> EventPublisher : "Вызывает"
+DeviceService --> Device : "Создает/обновляет"
+Device --> Config : "Имеет"
+Device : "Содержит" --> DeviceType
+Device : "Содержит" --> DeviceStatus
+@enduml

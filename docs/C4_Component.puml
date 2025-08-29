@@ -1,0 +1,19 @@
+@startuml
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+title C4 — Уровень компонентов для микросервиса "Управление устройствами"
+
+Container_Boundary(УправлениеУстройствами, "Управление устройствами") {
+    Component(API, "API", "Spring Boot REST API", "Обрабатывает входящие запросы.")
+    Component(CommandHandler, "Обработчик команд", "Java", "Обрабатывает команды на управление устройствами.")
+    Component(DeviceManager, "Менеджер устройств", "Java", "Управляет состоянием устройств.")
+    Component(EventPublisher, "Публикатор событий", "Java", "Публикует события в Kafka.")
+    ComponentDb(DB, "БД устройств", "PostgreSQL", "Сохраняет информацию об устройствах.")
+}
+
+Rel(API, CommandHandler, "Передаёт команды")
+Rel(CommandHandler, DeviceManager, "Отправляет команды управления устройствами")
+Rel(DeviceManager, DB, "Читает и записывает данные")
+Rel(DeviceManager, EventPublisher, "Публикует события о статусе устройств в Kafka")
+
+@enduml

@@ -1,0 +1,76 @@
+@startuml
+title ER-диаграмма будущей экосистемы умного дома
+
+entity User {
+    * id : UUID [PK]
+    * email : String
+    * password_hash : String
+    * name : String
+    * created_at : Timestamp
+    * updated_at : Timestamp
+}
+
+entity House {
+    * id : UUID [PK]
+    * user_id : UUID [FK]
+    * address : String
+    * created_at : Timestamp
+    * updated_at : Timestamp
+}
+
+entity Device {
+    * id : UUID [PK]
+    * house_id : UUID [FK]
+    * type_id : UUID [FK]
+    * serial_number : String
+    * status : String
+    * configuration : JSON
+    * created_at : Timestamp
+    * updated_at : Timestamp
+}
+
+entity DeviceType {
+    * id : UUID [PK]
+    * name : String
+    * description : String
+}
+
+entity Module {
+    * id : UUID [PK]
+    * name : String
+    * description : String
+    * api_endpoint : String
+    * created_at : Timestamp
+    * updated_at : Timestamp
+}
+
+entity TelemetryData {
+    * id : UUID [PK]
+    * device_id : UUID [FK]
+    * data : JSON
+    * recorded_at : Timestamp
+}
+
+entity AccessLog {
+    * id : UUID [PK]
+    * user_id : UUID [FK]
+    * action : String
+    * resource : String
+    * timestamp : Timestamp
+}
+
+entity EventTemplate{
+    * id: UUID [PK]
+    * name: String
+    * template: String
+    * from: String
+    * typeEvent: String
+}
+
+User ||--o{ House : "owns"
+House ||--o{ Device : "contains"
+Device ||--|| DeviceType : "is of type"
+Device ||--o{ TelemetryData : "generates"
+DeviceType ||--o{ Module : "is supported by"
+User ||--o{ AccessLog : "has logs"
+@enduml
