@@ -27,10 +27,15 @@ func main() {
 
 	log.Println("Connected to database successfully")
 
-	// Initialize temperature service
-	temperatureAPIURL := getEnv("TEMPERATURE_API_URL", "http://temperature-api:8081")
-	temperatureService := services.NewTemperatureService(temperatureAPIURL)
-	log.Printf("Temperature service initialized with API URL: %s\n", temperatureAPIURL)
+	// Initialize temperature storage
+	temperatureStorage := services.NewTemperatureStorage()
+	log.Println("Temperature storage initialized")
+
+	// Initialize and run Kafka consumer
+	kafkaBrokers := []string{getEnv("KAFKA_BROKERS", "localhost:9092")}
+	kafkaConsumer := services.NewKafkaConsumer(kafkaBrokers, "current_temp", temperatureStorage)
+	kafkaConsumer.Run(context.Background())
+	log.Printf("Kafka consumer initialized with brokers: %v\n", kafkaBrokers)
 
 	// Initialize router
 	router := gin.Default()
@@ -46,7 +51,7 @@ func main() {
 	apiRoutes := router.Group("/api/v1")
 
 	// Register sensor routes
-	sensorHandler := handlers.NewSensorHandler(database, temperatureService)
+	sensorHandler := handlers.NewSensorHandler(database, temperatureStorage)
 	sensorHandler.RegisterRoutes(apiRoutes)
 
 	// Start server

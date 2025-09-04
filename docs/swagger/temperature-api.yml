@@ -1,0 +1,87 @@
+openapi: 3.0.0
+info:
+  title: Temperature API
+  description: API for recording and retrieving temperature data.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8081
+    description: Local server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - bearerAuth: []
+
+paths:
+  /temperature:
+    post:
+      summary: Record a new temperature reading
+      description: Receives temperature data from a device, saves it to the database, and sends it to a Kafka topic.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_id:
+                  type: integer
+                  description: The ID of the device.
+                  example: 1
+                temp:
+                  type: number
+                  format: float
+                  description: The temperature reading.
+                  example: 35.4
+              required:
+                - device_id
+                - temp
+      responses:
+        '200':
+          description: Successfully recorded the temperature.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+        '400':
+          description: Bad request, missing device_id or temp.
+        '401':
+          description: Unauthorized, missing or invalid token.
+
+  /temperature/{device_id}:
+    get:
+      summary: Get a random temperature for a device
+      description: Returns a random temperature value for a given device ID.
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          description: The ID of the device.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A random temperature reading.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  device_id:
+                    type: integer
+                    example: 1
+                  temp:
+                    type: number
+                    format: float
+                    example: 22.5
+        '401':
+          description: Unauthorized, missing or invalid token.
