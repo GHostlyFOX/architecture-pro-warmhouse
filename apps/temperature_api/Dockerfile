@@ -7,6 +7,7 @@ FROM php:8.1-fpm
 RUN apt-get update && apt-get install -y \
     librdkafka-dev \
     libpq-dev \
+    git \
     && pecl install rdkafka \
     && docker-php-ext-enable rdkafka \
     && docker-php-ext-install pdo pdo_pgsql

@@ -14,10 +14,13 @@ services:
       POSTGRES_DB: smarthome
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
     volumes:
       - ./smart_home/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d smarthome"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - smart_home_net
 
@@ -29,10 +32,13 @@ services:
       POSTGRES_DB: temperature_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-    ports:
-      - "5433:5432"
     volumes:
       - ./temperature_api/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d temperature_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - smart_home_net
 
@@ -44,10 +50,13 @@ services:
       POSTGRES_DB: switcher_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-    ports:
-      - "5434:5432"
     volumes:
       - ./switcher-api/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d switcher_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - smart_home_net
 
@@ -58,8 +67,6 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
     networks:
       - smart_home_net
 
@@ -79,6 +86,19 @@ services:
       - smart_home_net
 
   # --- Applications ---
+  monolith-nginx:
+    image: nginx:latest
+    container_name: monolith-nginx
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./smart_home/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - monolith
+    networks:
+      - smart_home_net
+
   monolith:
     build:
       context: ./smart_home
@@ -86,11 +106,12 @@ services:
     container_name: monolith
     restart: always
     depends_on:
-      - monolith-db
-      - kafka
-    ports:
-      - "8080:8080"
+      monolith-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
+      - PORT=:8080
       - DATABASE_URL=postgres://user:password@monolith-db:5432/smarthome?sslmode=disable
       - KAFKA_BROKERS=kafka:9092
     networks:
@@ -116,9 +137,12 @@ services:
     container_name: switcher-api
     restart: always
     depends_on:
-      - switcher-db
-      - kafka
-      - monolith
+      switcher-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      monolith:
+        condition: service_started
     environment:
       - DB_HOST=switcher-db
       - DB_PORT=5432
@@ -126,7 +150,7 @@ services:
       - DB_USER=user
       - DB_PASSWORD=password
       - KAFKA_BROKERS=kafka:9092
-      - MONOLITH_API_URL=http://monolith:8080
+      - MONOLITH_API_URL=http://monolith-nginx:8080
     networks:
       - smart_home_net
 
@@ -138,8 +162,10 @@ services:
     restart: always
     command: php kafka_consumer.php
     depends_on:
-      - switcher-db
-      - kafka
+      switcher-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - DB_HOST=switcher-db
       - DB_PORT=5432
@@ -170,8 +196,10 @@ services:
     container_name: temperature-api
     restart: always
     depends_on:
-      - temperature-db
-      - kafka
+      temperature-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - DB_HOST=temperature-db
       - DB_PORT=5432

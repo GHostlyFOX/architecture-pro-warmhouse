@@ -1,76 +1,60 @@
 @startuml
-title ER-диаграмма будущей экосистемы умного дома
+title ER-диаграмма реализованной системы
 
-entity User {
-    * id : UUID [PK]
-    * email : String
-    * password_hash : String
-    * name : String
-    * created_at : Timestamp
-    * updated_at : Timestamp
+package "База данных Монолита (PostgreSQL)" {
+    entity "users" as users {
+        * **id** : SERIAL [PK]
+        --
+        * username : VARCHAR
+        * token : VARCHAR
+        * created_at : TIMESTAMP
+    }
+
+    entity "sensors" as sensors {
+        * **id** : SERIAL [PK]
+        --
+        * name : VARCHAR
+        * type : VARCHAR
+        * location : VARCHAR
+        * value : FLOAT
+        * status : VARCHAR
+        * last_updated : TIMESTAMP
+    }
+
+    entity "switchers" as switchers_reg {
+        * **id** : SERIAL [PK]
+        --
+        * name : VARCHAR
+        * user_id : INTEGER [FK]
+        * created_at : TIMESTAMP
+    }
 }
 
-entity House {
-    * id : UUID [PK]
-    * user_id : UUID [FK]
-    * address : String
-    * created_at : Timestamp
-    * updated_at : Timestamp
+package "База данных Temperature API (PostgreSQL)" {
+    entity "temperature_logs" as temp_logs {
+        * **id** : SERIAL [PK]
+        --
+        * device_id : INTEGER [FK]
+        * temperature : DECIMAL
+        * created_at : TIMESTAMP
+    }
 }
 
-entity Device {
-    * id : UUID [PK]
-    * house_id : UUID [FK]
-    * type_id : UUID [FK]
-    * serial_number : String
-    * status : String
-    * configuration : JSON
-    * created_at : Timestamp
-    * updated_at : Timestamp
+package "База данных Switcher API (PostgreSQL)" {
+    entity "switcher_states" as switcher_states {
+        * **id** : SERIAL [PK]
+        --
+        * device_id : INTEGER [FK]
+        * user_id : INTEGER [FK]
+        * status : BOOLEAN
+        * updated_at : TIMESTAMP
+    }
 }
 
-entity DeviceType {
-    * id : UUID [PK]
-    * name : String
-    * description : String
-}
+' Relationships
+users ||--|{ switchers_reg : "registers"
+sensors ||--o{ temp_logs : "has logs"
+switchers_reg ||--|| switcher_states : "has state"
+users ||--o{ switcher_states : "controls"
 
-entity Module {
-    * id : UUID [PK]
-    * name : String
-    * description : String
-    * api_endpoint : String
-    * created_at : Timestamp
-    * updated_at : Timestamp
-}
-
-entity TelemetryData {
-    * id : UUID [PK]
-    * device_id : UUID [FK]
-    * data : JSON
-    * recorded_at : Timestamp
-}
-
-entity AccessLog {
-    * id : UUID [PK]
-    * user_id : UUID [FK]
-    * action : String
-    * resource : String
-    * timestamp : Timestamp
-}
-
-entity EventTemplate{
-    * id: UUID [PK]
-    * name: String
-    * template: String
-    * from: String
-    * typeEvent: String
-}
-
-User ||--o{ House : "owns"
-House ||--o{ Device : "contains"
-Device ||--|| DeviceType : "is of type"
-Device ||--o{ TelemetryData : "generates"
-DeviceType ||--o{ Module : "is supported by"
-User ||--o{ AccessLog : "has logs"
 @enduml
