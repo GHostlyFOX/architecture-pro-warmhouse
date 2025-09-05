@@ -228,6 +228,54 @@ func (db *DB) DeleteSensor(ctx context.Context, id int) error {
 	return nil
 }
 
+// GetUserByToken retrieves a user by their token
+func (db *DB) GetUserByToken(ctx context.Context, token string) (models.User, error) {
+	query := `
+		SELECT id, username, created_at
+		FROM users
+		WHERE token = $1
+	`
+
+	var u models.User
+	err := db.Pool.QueryRow(ctx, query, token).Scan(
+		&u.ID,
+		&u.Username,
+		&u.CreatedAt,
+	)
+	if err != nil {
+		return models.User{}, fmt.Errorf("error getting user by token: %w", err)
+	}
+
+	return u, nil
+}
+
+// CreateSwitcher creates a new switcher in the database
+func (db *DB) CreateSwitcher(ctx context.Context, s models.SwitcherCreate) (models.Switcher, error) {
+	query := `
+		INSERT INTO switchers (name, user_id, created_at)
+		VALUES ($1, $2, $3)
+		RETURNING id, name, user_id, created_at
+	`
+
+	now := time.Now()
+	var switcher models.Switcher
+	err := db.Pool.QueryRow(ctx, query,
+		s.Name,
+		s.UserID,
+		now,
+	).Scan(
+		&switcher.ID,
+		&switcher.Name,
+		&switcher.UserID,
+		&switcher.CreatedAt,
+	)
+	if err != nil {
+		return models.Switcher{}, fmt.Errorf("error creating switcher: %w", err)
+	}
+
+	return switcher, nil
+}
+
 // UpdateSensorValue updates the value and status of a sensor
 func (db *DB) UpdateSensorValue(ctx context.Context, id int, value float64, status string) error {
 	query := `

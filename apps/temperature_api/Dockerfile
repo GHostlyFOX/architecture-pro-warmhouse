@@ -21,7 +21,7 @@ WORKDIR /app
 COPY . .
 
 # Устанавливаем зависимости Composer
-RUN composer install
+#RUN composer install
 
 # Открываем порт 9000 для FPM
 EXPOSE 9000

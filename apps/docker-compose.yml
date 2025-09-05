@@ -36,6 +36,21 @@ services:
     networks:
       - smart_home_net
 
+  switcher-db:
+    image: postgres:16-alpine
+    container_name: switcher-db
+    restart: always
+    environment:
+      POSTGRES_DB: switcher_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./switcher-api/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - smart_home_net
+
   # --- Kafka ---
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -77,6 +92,60 @@ services:
       - "8080:8080"
     environment:
       - DATABASE_URL=postgres://user:password@monolith-db:5432/smarthome?sslmode=disable
+      - KAFKA_BROKERS=kafka:9092
+    networks:
+      - smart_home_net
+
+  switcher-api-nginx:
+    image: nginx:latest
+    container_name: switcher-api-nginx
+    restart: always
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./switcher-api/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - switcher-api
+    networks:
+      - smart_home_net
+
+  switcher-api:
+    build:
+      context: ./switcher-api
+      dockerfile: Dockerfile
+    container_name: switcher-api
+    restart: always
+    depends_on:
+      - switcher-db
+      - kafka
+      - monolith
+    environment:
+      - DB_HOST=switcher-db
+      - DB_PORT=5432
+      - DB_NAME=switcher_db
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - KAFKA_BROKERS=kafka:9092
+      - MONOLITH_API_URL=http://monolith:8080
+    networks:
+      - smart_home_net
+
+  switcher-consumer:
+    build:
+      context: ./switcher-api
+      dockerfile: Dockerfile
+    container_name: switcher-consumer
+    restart: always
+    command: php kafka_consumer.php
+    depends_on:
+      - switcher-db
+      - kafka
+    environment:
+      - DB_HOST=switcher-db
+      - DB_PORT=5432
+      - DB_NAME=switcher_db
+      - DB_USER=user
+      - DB_PASSWORD=password
       - KAFKA_BROKERS=kafka:9092
     networks:
       - smart_home_net

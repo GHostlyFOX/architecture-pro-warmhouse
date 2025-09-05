@@ -31,11 +31,18 @@ func main() {
 	temperatureStorage := services.NewTemperatureStorage()
 	log.Println("Temperature storage initialized")
 
-	// Initialize and run Kafka consumer
+	// Initialize Kafka
 	kafkaBrokers := []string{getEnv("KAFKA_BROKERS", "localhost:9092")}
+
+	// Kafka Consumer
 	kafkaConsumer := services.NewKafkaConsumer(kafkaBrokers, "current_temp", temperatureStorage)
 	kafkaConsumer.Run(context.Background())
-	log.Printf("Kafka consumer initialized with brokers: %v\n", kafkaBrokers)
+	log.Printf("Kafka consumer initialized for topic 'current_temp'")
+
+	// Kafka Producer
+	kafkaProducer := services.NewKafkaProducer(kafkaBrokers)
+	defer kafkaProducer.Close()
+	log.Printf("Kafka producer initialized")
 
 	// Initialize router
 	router := gin.Default()
@@ -53,6 +60,14 @@ func main() {
 	// Register sensor routes
 	sensorHandler := handlers.NewSensorHandler(database, temperatureStorage)
 	sensorHandler.RegisterRoutes(apiRoutes)
+
+	// Register auth routes
+	authHandler := handlers.NewAuthHandler(database)
+	authHandler.RegisterRoutes(apiRoutes)
+
+	// Register switcher routes
+	switcherHandler := handlers.NewSwitcherHandler(database, kafkaProducer)
+	switcherHandler.RegisterRoutes(apiRoutes)
 
 	// Start server
 	srv := &http.Server{
