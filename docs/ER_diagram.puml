@@ -1,0 +1,60 @@
+@startuml
+title ER-диаграмма реализованной системы
+
+package "База данных Монолита (PostgreSQL)" {
+    entity "users" as users {
+        * **id** : SERIAL [PK]
+        --
+        * username : VARCHAR
+        * token : VARCHAR
+        * created_at : TIMESTAMP
+    }
+
+    entity "sensors" as sensors {
+        * **id** : SERIAL [PK]
+        --
+        * name : VARCHAR
+        * type : VARCHAR
+        * location : VARCHAR
+        * value : FLOAT
+        * status : VARCHAR
+        * last_updated : TIMESTAMP
+    }
+
+    entity "switchers" as switchers_reg {
+        * **id** : SERIAL [PK]
+        --
+        * name : VARCHAR
+        * user_id : INTEGER [FK]
+        * created_at : TIMESTAMP
+    }
+}
+
+package "База данных Temperature API (PostgreSQL)" {
+    entity "temperature_logs" as temp_logs {
+        * **id** : SERIAL [PK]
+        --
+        * device_id : INTEGER [FK]
+        * temperature : DECIMAL
+        * created_at : TIMESTAMP
+    }
+}
+
+package "База данных Switcher API (PostgreSQL)" {
+    entity "switcher_states" as switcher_states {
+        * **id** : SERIAL [PK]
+        --
+        * device_id : INTEGER [FK]
+        * user_id : INTEGER [FK]
+        * status : BOOLEAN
+        * updated_at : TIMESTAMP
+    }
+}
+
+' Relationships
+users ||--|{ switchers_reg : "registers"
+sensors ||--o{ temp_logs : "has logs"
+switchers_reg ||--|| switcher_states : "has state"
+users ||--o{ switcher_states : "controls"
+
+@enduml

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -17,14 +16,14 @@ import (
 // SensorHandler handles sensor-related requests
 type SensorHandler struct {
 	DB                 *db.DB
-	TemperatureService *services.TemperatureService
+	TemperatureStorage *services.TemperatureStorage
 }
 
 // NewSensorHandler creates a new SensorHandler
-func NewSensorHandler(db *db.DB, temperatureService *services.TemperatureService) *SensorHandler {
+func NewSensorHandler(db *db.DB, temperatureStorage *services.TemperatureStorage) *SensorHandler {
 	return &SensorHandler{
 		DB:                 db,
-		TemperatureService: temperatureService,
+		TemperatureStorage: temperatureStorage,
 	}
 }
 
@@ -38,7 +37,6 @@ func (h *SensorHandler) RegisterRoutes(router *gin.RouterGroup) {
 		sensors.PUT("/:id", h.UpdateSensor)
 		sensors.DELETE("/:id", h.DeleteSensor)
 		sensors.PATCH("/:id/value", h.UpdateSensorValue)
-		sensors.GET("/temperature/:location", h.GetTemperatureByLocation)
 	}
 }
 
@@ -50,18 +48,13 @@ func (h *SensorHandler) GetSensors(c *gin.Context) {
 		return
 	}
 
-	// Update temperature sensors with real-time data from the external API
+	// Update temperature sensors with data from the in-memory storage
 	for i, sensor := range sensors {
 		if sensor.Type == models.Temperature {
-			tempData, err := h.TemperatureService.GetTemperatureByID(fmt.Sprintf("%d", sensor.ID))
-			if err == nil {
-				// Update sensor with real-time data
-				sensors[i].Value = tempData.Value
-				sensors[i].Status = tempData.Status
+			if tempData, ok := h.TemperatureStorage.GetTemperature(sensor.ID); ok {
+				sensors[i].Value = tempData.Temperature
 				sensors[i].LastUpdated = tempData.Timestamp
-				log.Printf("Updated temperature data for sensor %d from external API", sensor.ID)
-			} else {
-				log.Printf("Failed to fetch temperature data for sensor %d: %v", sensor.ID, err)
+				log.Printf("Updated temperature data for sensor %d from in-memory storage", sensor.ID)
 			}
 		}
 	}
@@ -83,49 +76,16 @@ func (h *SensorHandler) GetSensorByID(c *gin.Context) {
 		return
 	}
 
-	// If this is a temperature sensor, fetch real-time data from the temperature API
+	// If this is a temperature sensor, fetch data from the in-memory storage
 	if sensor.Type == models.Temperature {
-		tempData, err := h.TemperatureService.GetTemperatureByID(fmt.Sprintf("%d", sensor.ID))
-		if err == nil {
-			// Update sensor with real-time data
-			sensor.Value = tempData.Value
-			sensor.Status = tempData.Status
+		if tempData, ok := h.TemperatureStorage.GetTemperature(sensor.ID); ok {
+			sensor.Value = tempData.Temperature
 			sensor.LastUpdated = tempData.Timestamp
-			log.Printf("Updated temperature data for sensor %d from external API", sensor.ID)
-		} else {
-			log.Printf("Failed to fetch temperature data for sensor %d: %v", sensor.ID, err)
+			log.Printf("Updated temperature data for sensor %d from in-memory storage", sensor.ID)
 		}
 	}
 
 	c.JSON(http.StatusOK, sensor)
-}
-
-// GetTemperatureByLocation handles GET /api/v1/sensors/temperature/:location
-func (h *SensorHandler) GetTemperatureByLocation(c *gin.Context) {
-	location := c.Param("location")
-	if location == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Location is required"})
-		return
-	}
-
-	// Fetch temperature data from the external API
-	tempData, err := h.TemperatureService.GetTemperature(location)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintf("Failed to fetch temperature data: %v", err),
-		})
-		return
-	}
-
-	// Return the temperature data
-	c.JSON(http.StatusOK, gin.H{
-		"location":    tempData.Location,
-		"value":       tempData.Value,
-		"unit":        tempData.Unit,
-		"status":      tempData.Status,
-		"timestamp":   tempData.Timestamp,
-		"description": tempData.Description,
-	})
 }
 
 // CreateSensor handles POST /api/v1/sensors
